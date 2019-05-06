@@ -25,6 +25,12 @@ LOGGING = {
             "class": 'logging.FileHandler',
             "filename": "log.log",
             "formatter": "default_format"
+        },
+        "similar_photos_handler": {
+            'level': 'INFO',
+            "class": 'logging.FileHandler',
+            "filename": "similar_photos_logger.log",
+            "formatter": "default_format"
         }
 
     },
@@ -45,5 +51,10 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': True,
         },
+        'similar_photos_logger': {
+            'handlers': ['similar_photos_handler'],
+            'level': 'DEBUG',
+            'propagate': True,
+        }
     }
 }
