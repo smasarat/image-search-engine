@@ -1,0 +1,8 @@
+.idea/vcs.xml
+static/
+templates/
+tensor/Include/
+*.log
+tensor
+workspace.xml
+.idea/
