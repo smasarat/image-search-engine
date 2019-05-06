@@ -4,3 +4,4 @@ class ResponseFormat(object):
         self.count = count
         self.message = message
         self.error_code = error_code
+
