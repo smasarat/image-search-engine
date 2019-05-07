@@ -34,16 +34,20 @@ class AlwaysRunningClass(threading.Thread):
             output = open(constants.TMP_FILE_TO_STORE_DESCRIPTIONS, "w")
 
             images_directory = constants.IMAGES_DIRECTORY
-            target_directory = [f for f in glob.glob(images_directory + "/*.png")]
-            target_directory += [f for f in glob.glob(images_directory + "/*.jpg")]
-            target_directory += [f for f in glob.glob(images_directory + "/*.jpeg")]
-            target_directory += [f for f in glob.glob(images_directory + "/*.Jpeg")]
-            target_directory += [f for f in glob.glob(images_directory + "/*.JPEG")]
-            target_directory += [f for f in glob.glob(images_directory + "/*.jpg")]
-            target_directory += [f for f in glob.glob(images_directory + "/*.JPG")]
+            training_img_directory = [f for f in glob.glob(images_directory + "/*.png")]
+            training_img_directory += [f for f in glob.glob(images_directory + "/*.jpg")]
+            training_img_directory += [f for f in glob.glob(images_directory + "/*.jpeg")]
+            training_img_directory += [f for f in glob.glob(images_directory + "/*.Jpeg")]
+            training_img_directory += [f for f in glob.glob(images_directory + "/*.JPEG")]
+            training_img_directory += [f for f in glob.glob(images_directory + "/*.jpg")]
+            training_img_directory += [f for f in glob.glob(images_directory + "/*.JPG")]
 
             # use glob to grab the image paths and loop over them
-            for image_path_iter in target_directory:
+            counter = 0
+            for image_path_iter in training_img_directory:
+                counter += 1
+                if counter % int(constants.TRAINING_LOG_THRESHOLD) == 0:
+                    logger.info("describing in progress: {}".format(counter))
                 # extract the image ID (i.e. the unique filename) from the image
                 # path and load the image itself
                 imageID = image_path_iter[image_path_iter.rfind("/") + 1:]

@@ -81,7 +81,7 @@ def get_similar_images():
             num += 1
             # load the result image and display it
             result = cv2.imread(result_path)
-            cv2.imwrite(constants.IMAGES_DIRECTORY + str(num) + str(file_name), img=result)
+            cv2.imwrite(constants.USER_UPLOAD_DIR + str(num) + str(file_name), img=result)
 
     return jsonify({"resp": "Hello World"})
 
