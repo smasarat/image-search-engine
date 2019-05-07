@@ -1,5 +1,7 @@
 # import the necessary packages
 import logging
+import numpy as np
+from elasticsearch import Elasticsearch
 
 from key_constants import constants
 from training.descriptor import ColorDescriptor
@@ -50,18 +52,31 @@ class AlwaysRunningClass(threading.Thread):
                     logger.info("describing in progress: {}".format(counter))
                 # extract the image ID (i.e. the unique filename) from the image
                 # path and load the image itself
-                imageID = image_path_iter[image_path_iter.rfind("/") + 1:]
+                image_id = image_path_iter[image_path_iter.rfind("/") + 1:]
                 image = cv2.imread(image_path_iter)
 
                 # describe the image
                 features = color_descriptor.describe(image)
 
                 # write the features to file
-                features = [str(f) for f in features]
-                output.write("%s,%s\n" % (imageID, ",".join(features)))
+                features = [f for f in features]
+                try:
+                    # output.write("%s,%s\n" % (imageID, ",".join(features)))
+                    es = Elasticsearch(hosts=[{"host": constants.ES_HOST, "port": constants.ES_PORT}])
+                    es.index(index=constants.ES_SE_INDEX, doc_type=constants.ES_SE_DESCRIPTOR, id=image_id,
+                             body={"features": np.array(features).tolist()})
+                except Exception as e:
+                    logger.exception(e)
 
             # close the index file
-            output.close()
+            # output.close()
 
         except Exception as e:
             logger.exception(e)
+
+
+
+
+# todo: set strategy for determine number of features in config file
+# todo: check the possibility of working with different versions of Elasticsearch (7.0)
+# todo: rename file_names to short format. (not complete address)

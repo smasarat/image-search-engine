@@ -1,6 +1,17 @@
 # import the necessary packages
+import logging
+import pandas as pd
 import numpy as np
 import csv
+
+from elasticsearch import Elasticsearch
+
+from key_constants import constants
+from logging.config import dictConfig
+from logs.log_config import LOGGING
+
+dictConfig(LOGGING)
+logger = logging.getLogger("file")
 
 
 class Searcher:
@@ -41,11 +52,25 @@ class Searcher:
             # close the reader
             f.close()
 
+        try:
+            es = Elasticsearch(hosts=[{"host": constants.ES_HOST, "port": constants.ES_PORT}])
+            query = {"size": 10000, "query": {"match_all": {}}}
+            _search_res = es.search(index="image_recommender", body=query)
+            n_records = _search_res["hits"]["total"]
+            n_features = len(_search_res["hits"]["hits"][0]["_source"]["features"]) if n_records != 0 else 0
+            df = pd.DataFrame(columns=list(map(lambda x: "f_" + x, list(map(str, list(range(n_features)))))))
+
+            for hits_iter in _search_res["hits"]["hits"]:
+                df.loc[hits_iter["_id"]] = hits_iter["_source"]["features"]
+
+
+
+        except Exception as e:
+            logger.exception(e)
+
         # sort our results, so that the smaller distances (i.e. the
         # more relevant images are at the front of the list)
         results = sorted([(v, k) for (k, v) in results.items()])
 
         # return our (limited) results
         return results[:limit]
-
-
