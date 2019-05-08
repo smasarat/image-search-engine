@@ -3,7 +3,6 @@ import logging
 import os
 import threading
 from logging.config import dictConfig
-
 import cv2
 import numpy as np
 from flask import Flask, jsonify, request
@@ -13,7 +12,9 @@ from logs.log_config import LOGGING
 from querying.searcher import Searcher
 from response_format.response import ResponseFormat
 from training.descriptor import ColorDescriptor
-from training.train_loop import AlwaysRunningClass
+from training.fetch_features import AlwaysRunningDfInMemory
+from training.train_loop import AlwaysRunningEsIndex
+import training.globals as training_globals
 
 dictConfig(LOGGING)
 file_logger = logging.getLogger("file")
@@ -21,34 +22,65 @@ similar_photos_logger = logging.getLogger("similar_photos_logger")
 dataLock = threading.Lock()
 
 
+# todo: set strategy for determine number of features in config file
+# todo: check the possibility of working with different versions of Elasticsearch (7.0)
+# todo: rename file_names to short format. (not complete address)
+# todo: performance checking of data-frame load.
+# todo: check the accuracy of system. whether it returns same as previous results.
+# todo: handle the true response especially when dataframe or es are not completely computed.
+
+
 def create_app():
     app = Flask(__name__)
 
-    def interrupt():
-        global updating_thread
-        updating_thread.cancel()
+    def interrupt_es():
+        global updating_thread_es
+        updating_thread_es.cancel()
 
-    def do_update():
-        global updating_thread
+    def interrupt_df():
+        global updating_thread_df
+        updating_thread_df.cancel()
+
+    def do_df_update():
+        global updating_thread_df
         # Do your stuff with commonDataStruct Here
         with dataLock:
-            _always_running_class = AlwaysRunningClass()
+            _always_running_class = AlwaysRunningDfInMemory()
             _always_running_class.run()
         # Set the next thread to happen
-        updating_thread = threading.Timer(constants.RE_TRAIN_INTERVAL_SEC, do_update)
-        updating_thread.start()
+        updating_thread_df = threading.Timer(constants.RE_FETCH_INTERVAL_SEC, do_df_update)
+        updating_thread_df.start()
 
-    def do_update_start():
+    def do_es_update():
+        global updating_thread_es
+        # Do your stuff with commonDataStruct Here
+        with dataLock:
+            _always_running_es_index_class = AlwaysRunningEsIndex()
+            _always_running_es_index_class.run()
+        # Set the next thread to happen
+        updating_thread_es = threading.Timer(constants.RE_INDEX_INTERVAL_SEC, do_es_update)
+        updating_thread_es.start()
+
+    def do_es_index_start():
         # Do initialisation stuff here
-        global updating_thread
+        global updating_thread_es
         # Create your thread
-        updating_thread = threading.Timer(constants.RE_TRAIN_INTERVAL_SEC, do_update)
-        updating_thread.start()
+        updating_thread_es = threading.Timer(constants.RE_INDEX_INTERVAL_SEC, do_es_update)
+        updating_thread_es.start()
+
+    def do_df_inmemroy_start():
+        # Do initialisation stuff here
+        global updating_thread_df
+        # Create your thread
+        updating_thread_df = threading.Timer(constants.RE_FETCH_INTERVAL_SEC, do_df_update)
+        updating_thread_df.start()
 
     # Initiate
-    do_update_start()
+    do_df_inmemroy_start()
+    do_es_index_start()
     # When you kill Flask (SIGTERM), clear the trigger for the next thread
-    atexit.register(interrupt)
+    atexit.register(interrupt_es)
+    atexit.register(interrupt_df)
     return app
 
 
@@ -90,4 +122,11 @@ def get_similar_images():
 def heartbeat():
     _response_format = ResponseFormat(ids=[], count=0, message="works well!", error_code=0)
     file_logger.info("works well!")
+    return jsonify(_response_format.__dict__)
+
+
+@app.route('/getlastupdatetime')
+def get_last_update_time():
+    _response_format = ResponseFormat(ids=[training_globals.last_updatetime], count=0, message="works well!", error_code=0)
+    file_logger.info("getupdatetime called ! ")
     return jsonify(_response_format.__dict__)

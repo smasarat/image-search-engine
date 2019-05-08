@@ -60,10 +60,11 @@ class Searcher:
             n_features = len(_search_res["hits"]["hits"][0]["_source"]["features"]) if n_records != 0 else 0
             df = pd.DataFrame(columns=list(map(lambda x: "f_" + x, list(map(str, list(range(n_features)))))))
 
+            df_scores = {}
             for hits_iter in _search_res["hits"]["hits"]:
                 df.loc[hits_iter["_id"]] = hits_iter["_source"]["features"]
-
-
+                df_scores[hits_iter["_id"]] = self.chi2_distance(hits_iter["_source"]["features"],queryFeatures)
+            print()
 
         except Exception as e:
             logger.exception(e)

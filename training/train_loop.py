@@ -22,7 +22,7 @@ ap = argparse.ArgumentParser()
 # ap.add_argument("-d", "--dataset", required=True, help="Path to the directory that contains the images to be indexed")
 # ap.add_argument("-i", "--index", required=True, help="Path to where the computed index will be stored")
 
-class AlwaysRunningClass(threading.Thread):
+class AlwaysRunningEsIndex(threading.Thread):
 
     def stop(self):
         self._running = False
@@ -61,7 +61,7 @@ class AlwaysRunningClass(threading.Thread):
                 # write the features to file
                 features = [f for f in features]
                 try:
-                    # output.write("%s,%s\n" % (imageID, ",".join(features)))
+                    output.write("%s,%s\n" % (image_id, ",".join(list(map(str, features)))))
                     es = Elasticsearch(hosts=[{"host": constants.ES_HOST, "port": constants.ES_PORT}])
                     es.index(index=constants.ES_SE_INDEX, doc_type=constants.ES_SE_DESCRIPTOR, id=image_id,
                              body={"features": np.array(features).tolist()})
@@ -74,9 +74,3 @@ class AlwaysRunningClass(threading.Thread):
         except Exception as e:
             logger.exception(e)
 
-
-
-
-# todo: set strategy for determine number of features in config file
-# todo: check the possibility of working with different versions of Elasticsearch (7.0)
-# todo: rename file_names to short format. (not complete address)
