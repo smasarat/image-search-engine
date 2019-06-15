@@ -6,3 +6,6 @@ tensor/Include/
 tensor
 workspace.xml
 .idea/
+*.pyc
+./data/training_photos
+./data/queries_photos

@@ -1,15 +1,15 @@
 # import the necessary packages
 import logging
 import numpy as np
-from elasticsearch import Elasticsearch
+import pandas as pd
 
+from imports_exports.pickle_actions import PickleActions
 from key_constants import constants
 from training.descriptor import ColorDescriptor
 import argparse
 import glob
 import cv2
 import threading
-import time
 from logging.config import dictConfig
 from logs.log_config import LOGGING
 
@@ -33,7 +33,6 @@ class AlwaysRunningEsIndex(threading.Thread):
             # initialize the color descriptor
             color_descriptor = ColorDescriptor(constants.COLOR_DESCRIPTOR_TUPLE)
             # open the output index file for writing
-            output = open(constants.TMP_FILE_TO_STORE_DESCRIPTIONS, "w")
 
             images_directory = constants.IMAGES_DIRECTORY
             training_img_directory = [f for f in glob.glob(images_directory + "/*.png")]
@@ -44,7 +43,9 @@ class AlwaysRunningEsIndex(threading.Thread):
             training_img_directory += [f for f in glob.glob(images_directory + "/*.jpg")]
             training_img_directory += [f for f in glob.glob(images_directory + "/*.JPG")]
 
+            df = None
             # use glob to grab the image paths and loop over them
+
             counter = 0
             for image_path_iter in training_img_directory:
                 counter += 1
@@ -52,7 +53,6 @@ class AlwaysRunningEsIndex(threading.Thread):
                     logger.info("describing in progress: {}".format(counter))
                 # extract the image ID (i.e. the unique filename) from the image
                 # path and load the image itself
-                image_id = image_path_iter[image_path_iter.rfind("/") + 1:]
                 image = cv2.imread(image_path_iter)
 
                 # describe the image
@@ -60,17 +60,19 @@ class AlwaysRunningEsIndex(threading.Thread):
 
                 # write the features to file
                 features = [f for f in features]
-                try:
-                    output.write("%s,%s\n" % (image_id, ",".join(list(map(str, features)))))
-                    es = Elasticsearch(hosts=[{"host": constants.ES_HOST, "port": constants.ES_PORT}])
-                    es.index(index=constants.ES_SE_INDEX, doc_type=constants.ES_SE_DESCRIPTOR, id=image_id,
-                             body={"features": np.array(features).tolist()})
-                except Exception as e:
-                    logger.exception(e)
+                if df is None:
+                    df = pd.DataFrame(columns=list(map(lambda x: "f_" + x, list(map(str, list(range(len(features))))))))
 
-            # close the index file
-            # output.close()
+                image_id = image_path_iter.replace(constants.IMAGES_DIRECTORY, "").replace("\\", "").replace("/", "")
+                df.loc[image_id] = features
+            try:
+                print()
+                _pickle_actions = PickleActions(target_path=constants.TMP_FILE_TO_STORE_DESCRIPTIONS)
+                _pickle_actions.save_pickle(df)
+
+            except Exception as e:
+                logger.exception(e)
+
 
         except Exception as e:
             logger.exception(e)
-

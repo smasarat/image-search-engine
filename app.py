@@ -23,9 +23,7 @@ dataLock = threading.Lock()
 
 
 # todo: set strategy for determine number of features in config file
-# todo: check the possibility of working with different versions of Elasticsearch (7.0)
 # todo: rename file_names to short format. (not complete address)
-# todo: performance checking of data-frame load.
 # todo: check the accuracy of system. whether it returns same as previous results.
 # todo: handle the true response especially when dataframe or es are not completely computed.
 
@@ -33,9 +31,9 @@ dataLock = threading.Lock()
 def create_app():
     app = Flask(__name__)
 
-    def interrupt_es():
-        global updating_thread_es
-        updating_thread_es.cancel()
+    def interrupt_pickle_update():
+        global updating_thread_pickle
+        updating_thread_pickle.cancel()
 
     def interrupt_df():
         global updating_thread_df
@@ -51,22 +49,22 @@ def create_app():
         updating_thread_df = threading.Timer(constants.RE_FETCH_INTERVAL_SEC, do_df_update)
         updating_thread_df.start()
 
-    def do_es_update():
-        global updating_thread_es
+    def do_description_update():
+        global updating_thread_pickle
         # Do your stuff with commonDataStruct Here
         with dataLock:
             _always_running_es_index_class = AlwaysRunningEsIndex()
             _always_running_es_index_class.run()
         # Set the next thread to happen
-        updating_thread_es = threading.Timer(constants.RE_INDEX_INTERVAL_SEC, do_es_update)
-        updating_thread_es.start()
+        updating_thread_pickle = threading.Timer(constants.RE_INDEX_INTERVAL_SEC, do_description_update)
+        updating_thread_pickle.start()
 
-    def do_es_index_start():
+    def do_pickle_index_start():
         # Do initialisation stuff here
-        global updating_thread_es
+        global updating_thread_pickle
         # Create your thread
-        updating_thread_es = threading.Timer(constants.RE_INDEX_INTERVAL_SEC, do_es_update)
-        updating_thread_es.start()
+        updating_thread_pickle = threading.Timer(constants.RE_INDEX_INTERVAL_SEC, do_description_update)
+        updating_thread_pickle.start()
 
     def do_df_inmemroy_start():
         # Do initialisation stuff here
@@ -76,10 +74,10 @@ def create_app():
         updating_thread_df.start()
 
     # Initiate
-    do_df_inmemroy_start()
-    do_es_index_start()
+    # do_df_inmemroy_start()
+    do_pickle_index_start()
     # When you kill Flask (SIGTERM), clear the trigger for the next thread
-    atexit.register(interrupt_es)
+    atexit.register(interrupt_pickle_update)
     atexit.register(interrupt_df)
     return app
 
@@ -100,22 +98,21 @@ def get_similar_images():
     # perform the search
     searcher = Searcher(indexPath=constants.TMP_FILE_TO_STORE_DESCRIPTIONS)
     results = searcher.search(features)
-    similar_photos = list(map(lambda x: x[1], results))
 
     file.stream.seek(0)
     file_name = file.filename
     file.save(os.path.join(constants.USER_UPLOAD_DIR, file_name))
-    similar_photos_logger.info("uploaded_photo:{}, recommended_photos:{}".format(file_name, similar_photos))
+    similar_photos_logger.info(
+        "uploaded_photo:{}, recommended_photos:{}".format(file_name, list(map(lambda x: x[0], results))))
 
     if constants.SAVE_WHOLE_VALIDATION_SET:
         num = 0
-        for (score, result_path) in results:
+        for (result_path, score) in results:
             num += 1
             # load the result image and display it
-            result = cv2.imread(result_path)
-            cv2.imwrite(constants.USER_UPLOAD_DIR + str(num) + str(file_name), img=result)
-
-    return jsonify({"resp": "Hello World"})
+            result = cv2.imread("{}/{}".format(constants.IMAGES_DIRECTORY, result_path))
+            cv2.imwrite(constants.USER_UPLOAD_DIR + "/" + str(num) + "-" + str(file_name), img=result)
+    return jsonify({"similar photos:", list(map(lambda x: x[0], results))})
 
 
 @app.route('/heartbeat', methods=['GET'])
@@ -127,6 +124,7 @@ def heartbeat():
 
 @app.route('/getlastupdatetime')
 def get_last_update_time():
-    _response_format = ResponseFormat(ids=[training_globals.last_updatetime], count=0, message="works well!", error_code=0)
+    _response_format = ResponseFormat(ids=[training_globals.last_updatetime], count=0, message="works well!",
+                                      error_code=0)
     file_logger.info("getupdatetime called ! ")
     return jsonify(_response_format.__dict__)

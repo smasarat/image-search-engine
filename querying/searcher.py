@@ -1,13 +1,10 @@
 # import the necessary packages
 import logging
-import pandas as pd
-import numpy as np
-import csv
-
-from elasticsearch import Elasticsearch
-
-from key_constants import constants
 from logging.config import dictConfig
+
+import numpy as np
+
+from imports_exports.pickle_actions import PickleActions
 from logs.log_config import LOGGING
 
 dictConfig(LOGGING)
@@ -32,14 +29,16 @@ class Searcher:
         # open the index file for reading
         with open(self.indexPath) as f:
             # initialize the CSV reader
-            reader = csv.reader(f)
+            _pickle_actions = PickleActions(self.indexPath)
+            df = _pickle_actions.load_pickle()
+            # reader = csv.reader(f)
 
             # loop over the rows in the index
-            for row in reader:
+            for row in df.iterrows():
                 # parse out the image ID and features, then compute the
                 # chi-squared distance between the features in our index
                 # and our query features
-                features = [float(x) for x in row[1:]]
+                features = list(map(float, row[1]))
                 d = self.chi2_distance(features, queryFeatures)
 
                 # now that we have the distance between the two feature
@@ -53,17 +52,10 @@ class Searcher:
             f.close()
 
         try:
-            es = Elasticsearch(hosts=[{"host": constants.ES_HOST, "port": constants.ES_PORT}])
-            query = {"size": 10000, "query": {"match_all": {}}}
-            _search_res = es.search(index="image_recommender", body=query)
-            n_records = _search_res["hits"]["total"]
-            n_features = len(_search_res["hits"]["hits"][0]["_source"]["features"]) if n_records != 0 else 0
-            df = pd.DataFrame(columns=list(map(lambda x: "f_" + x, list(map(str, list(range(n_features)))))))
-
             df_scores = {}
-            for hits_iter in _search_res["hits"]["hits"]:
-                df.loc[hits_iter["_id"]] = hits_iter["_source"]["features"]
-                df_scores[hits_iter["_id"]] = self.chi2_distance(hits_iter["_source"]["features"],queryFeatures)
+            for image_iter in df.iterrows():
+                # df.loc[image_iter] = feature_iter[feature_iter][1]
+                df_scores[image_iter[0]] = self.chi2_distance(df.loc[image_iter[0]], queryFeatures)
             print()
 
         except Exception as e:
@@ -71,7 +63,13 @@ class Searcher:
 
         # sort our results, so that the smaller distances (i.e. the
         # more relevant images are at the front of the list)
-        results = sorted([(v, k) for (k, v) in results.items()])
-
+        results = sorted(results.items(), key=lambda kv: -kv[1])
+        print()
         # return our (limited) results
         return results[:limit]
+
+
+def test_searcher():
+    _searcher = Searcher(indexPath="../data/descriptors/description.pkl")
+    query_features = [np.random.rand() for i in range(1440)]
+    print(_searcher.search(query_features, 10))

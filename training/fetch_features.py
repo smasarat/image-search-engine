@@ -5,7 +5,6 @@ import threading
 from logging.config import dictConfig
 
 import pandas as pd
-from elasticsearch import Elasticsearch
 
 from key_constants import constants
 from logs.log_config import LOGGING
