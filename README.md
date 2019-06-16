@@ -20,6 +20,7 @@ model existence in `data/descriptors`.
 
 ## Sample outputs
 Assume we have called `{{url}}:{{port}}/get_similars` with `file` from-data in Body part as below:
+
 ![queried_image](./data/samples/queried_image.png)
 
 Our trained model returns images below as the most similar images which are existed in our database.
