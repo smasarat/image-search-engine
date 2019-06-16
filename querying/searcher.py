@@ -38,7 +38,7 @@ class Searcher:
                 # parse out the image ID and features, then compute the
                 # chi-squared distance between the features in our index
                 # and our query features
-                features = list(map(float, row[1]))
+                features = list(map(np.float32, row[1]))
                 d = self.chi2_distance(features, queryFeatures)
 
                 # now that we have the distance between the two feature
@@ -51,19 +51,19 @@ class Searcher:
             # close the reader
             f.close()
 
-        try:
-            df_scores = {}
-            for image_iter in df.iterrows():
-                # df.loc[image_iter] = feature_iter[feature_iter][1]
-                df_scores[image_iter[0]] = self.chi2_distance(df.loc[image_iter[0]], queryFeatures)
-            print()
-
-        except Exception as e:
-            logger.exception(e)
+        # try:
+        #     df_scores = {}
+        #     for image_iter in df.iterrows():
+        #         # df.loc[image_iter] = feature_iter[feature_iter][1]
+        #         df_scores[image_iter[0]] = self.chi2_distance(df.loc[image_iter[0]], queryFeatures)
+        #     print()
+        #
+        # except Exception as e:
+        #     logger.exception(e)
 
         # sort our results, so that the smaller distances (i.e. the
         # more relevant images are at the front of the list)
-        results = sorted(results.items(), key=lambda kv: -kv[1])
+        results = sorted(results.items(), key=lambda kv: kv[1])
         print()
         # return our (limited) results
         return results[:limit]

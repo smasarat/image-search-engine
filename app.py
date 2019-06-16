@@ -85,9 +85,10 @@ def create_app():
 app = create_app()
 
 
-@app.route('/upload', methods=['POST'])
+@app.route('/get_similars', methods=['POST'])
 def get_similar_images():
     file = request.files['file']
+    size = int(request.args["size"])
 
     npimg = np.fromstring(file.read(), np.uint8)
     # convert numpy array to image
@@ -97,7 +98,7 @@ def get_similar_images():
 
     # perform the search
     searcher = Searcher(indexPath=constants.TMP_FILE_TO_STORE_DESCRIPTIONS)
-    results = searcher.search(features)
+    results = searcher.search(features, limit=size)
 
     file.stream.seek(0)
     file_name = file.filename
@@ -112,7 +113,9 @@ def get_similar_images():
             # load the result image and display it
             result = cv2.imread("{}/{}".format(constants.IMAGES_DIRECTORY, result_path))
             cv2.imwrite(constants.USER_UPLOAD_DIR + "/" + str(num) + "-" + str(file_name), img=result)
-    return jsonify({"similar photos:", list(map(lambda x: x[0], results))})
+
+    final_result = list(map(lambda x: x[0], results))
+    return jsonify(ResponseFormat(ids=final_result, count=len(final_result), message="", error_code=200).__dict__)
 
 
 @app.route('/heartbeat', methods=['GET'])

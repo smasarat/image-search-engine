@@ -66,7 +66,6 @@ class AlwaysRunningEsIndex(threading.Thread):
                 image_id = image_path_iter.replace(constants.IMAGES_DIRECTORY, "").replace("\\", "").replace("/", "")
                 df.loc[image_id] = features
             try:
-                print()
                 _pickle_actions = PickleActions(target_path=constants.TMP_FILE_TO_STORE_DESCRIPTIONS)
                 _pickle_actions.save_pickle(df)
 
